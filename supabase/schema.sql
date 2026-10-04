@@ -67,10 +67,18 @@ create table if not exists public.profile_private (
   birth_year int,
   parent_name text,
   parent_email text,
+  parent_phone text,
+  parent_whatsapp text,
   phone text,
   safeguarding_note text,
-  consent_confirmed_at timestamptz
+  consent_confirmed_at timestamptz,
+  consent_method text,
+  consent_by text
 );
+alter table public.profile_private add column if not exists parent_phone text;
+alter table public.profile_private add column if not exists parent_whatsapp text;
+alter table public.profile_private add column if not exists consent_method text;
+alter table public.profile_private add column if not exists consent_by text;
 
 -- ---------- Helper functions (security definer avoids RLS recursion) ----------
 create or replace function public.my_role() returns text
@@ -116,6 +124,7 @@ begin
   if r = 'teen' then
     if age is null or age < 12 or age > 19 then raise exception 'Teen accounts are for ages 12 to 19'; end if;
     if age < 18 and coalesce(m->>'parent_email','') = '' then raise exception 'A parent or guardian email is required under 18'; end if;
+    if age < 18 and coalesce(m->>'parent_phone','') !~ '^\+[0-9]{8,15}$' then raise exception 'A parent or guardian phone number is required under 18'; end if;
     grp := case when age <= 14 then '12-14' when age <= 17 then '15-17' else '18-19' end;
   else
     if age is null or age < 18 then raise exception 'Counselors must be 18 or older'; end if;
@@ -133,8 +142,8 @@ begin
     case when r = 'counselor' then 'pending' else 'n/a' end,
     case when r = 'teen' and age >= 18 then true when r = 'counselor' then true else false end
   );
-  insert into public.profile_private (id, birth_year, parent_name, parent_email, phone)
-  values (new.id, byear, m->>'parent_name', lower(m->>'parent_email'), m->>'phone');
+  insert into public.profile_private (id, birth_year, parent_name, parent_email, parent_phone, parent_whatsapp, phone)
+  values (new.id, byear, m->>'parent_name', lower(m->>'parent_email'), m->>'parent_phone', m->>'parent_whatsapp', m->>'phone');
   return new;
 end $$;
 
@@ -166,6 +175,9 @@ begin
   if auth.uid() is null or public.is_admin() then return new; end if;
   new.birth_year := old.birth_year;
   new.parent_email := old.parent_email;
+  new.parent_phone := old.parent_phone;
+  new.consent_method := old.consent_method;
+  new.consent_by := old.consent_by;
   new.safeguarding_note := old.safeguarding_note;
   new.consent_confirmed_at := old.consent_confirmed_at;
   return new;
