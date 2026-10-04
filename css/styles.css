@@ -414,3 +414,4 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--blue);outline-of
 @media (max-width:1180px) and (min-width:1021px){.toplinks button{padding:8px 9px;font-size:.86rem}}
 
 .leader-av{width:56px;height:56px;border-radius:50%;object-fit:cover;flex:none;box-shadow:0 0 0 3px var(--sheet),0 4px 12px rgba(11,18,48,.15)}
+.wa-btn{background:#25D366;color:#fff}.wa-btn:hover{background:#1EBE5B}
