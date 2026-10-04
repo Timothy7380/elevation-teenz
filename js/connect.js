@@ -27,6 +27,11 @@ const errText = e=>{const m=(e&&(e.message||e.error_description))||String(e||"So
 const roleLabel = p=>p.role==="teen"?"Teen":p.role==="admin"?"Leader":"Counselor";
 const isTeen = ()=>C.me&&C.me.role==="teen", isCounselor=()=>C.me&&C.me.role==="counselor", isAdmin=()=>C.me&&C.me.role==="admin";
 
+const DIAL=[["+234","🇳🇬"],["+44","🇬🇧"],["+1","🇺🇸/🇨🇦"],["+32","🇧🇪"],["+357","🇨🇾"],["+233","🇬🇭"],["+27","🇿🇦"],["+254","🇰🇪"],["+353","🇮🇪"],["+49","🇩🇪"],["+971","🇦🇪"]];
+function normPhone(code,num){let d=String(num||"").replace(/[^0-9+]/g,"");if(!d)return "";if(d.startsWith("+"))d=d.slice(1);else{d=d.replace(/^0+/,"");d=code.replace("+","")+d}return /^[0-9]{8,15}$/.test(d)?"+"+d:""}
+const WA_ICON='<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 00-8.6 15.1L2 22l5-1.3A10 10 0 1012 2zm0 18.2a8.2 8.2 0 01-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1112 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1-.3.2-.5.1a6.7 6.7 0 01-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 00-.7.3 3 3 0 00-.9 2.2 5.2 5.2 0 001.1 2.8 11.9 11.9 0 004.6 4c1.7.7 2.4.8 3.2.7a2.8 2.8 0 001.8-1.3 2.3 2.3 0 00.2-1.3c-.1-.1-.2-.2-.4-.3z"/></svg>';
+function consentMsg(parent,t){const first=String(t.display_name||"").split(" ")[0];return `Hello ${parent||""}, this is ${C.me?C.me.display_name:"a leader"} from Elevation Teenz (Teenz Nation), the teens ministry of The Elevation Church. ${first} has signed up for Elevation Teenz Connect at ${exprName(t.expression)}. Connect lets teens study the Bible, join moderated groups and be mentored by church-approved counselors. Leaders can see all chats, and phone numbers and links are blocked. Are you happy for ${first} to take part? Thank you!`}
+
 /* ---------- session ---------- */
 async function loadMe(){
   if(!SB||!C.session){C.me=null;C.priv=null;return}
@@ -121,7 +126,10 @@ auth(sub){
         <div id="parentBox" class="stack" style="gap:12px" hidden>
           <div class="callout">You're under 18, so a parent or guardian needs to know. A leader will confirm with them before you can send messages.</div>
           <label class="f" for="suPName">Parent or guardian's name<input type="text" id="suPName" maxlength="60"></label>
-          <label class="f" for="suPEmail">Parent or guardian's email<input type="email" id="suPEmail"></label>
+          <label class="f" for="suPEmail">Parent or guardian's email<input type="email" id="suPEmail" autocomplete="off"></label>
+          <div class="stack" style="gap:6px"><label for="suPPhone" style="font-weight:500;font-size:.92rem">Parent or guardian's phone (for a call or WhatsApp)</label>
+            <div class="row" style="gap:8px;flex-wrap:nowrap"><select id="suPCode" aria-label="Country code" style="width:auto;flex:none">${DIAL.map(([c,n])=>`<option value="${c}">${n} ${c}</option>`).join("")}</select><input type="tel" id="suPPhone" inputmode="tel" placeholder="803 123 4567" autocomplete="off" style="flex:1;min-width:0"></div>
+            <label class="check" style="font-size:.88rem"><input type="checkbox" id="suPWa" checked> This number is on WhatsApp</label></div>
           <label class="check"><input type="checkbox" id="suConsent"> My parent or guardian knows I'm joining Elevation Teenz Connect.</label>
         </div>
       </div>
@@ -295,6 +303,7 @@ auth(r){
     };
     document.querySelectorAll("[data-role]").forEach(b=>b.onclick=()=>{role=b.dataset.role;document.querySelectorAll("[data-role]").forEach(x=>{x.classList.toggle("on",x===b);x.setAttribute("aria-selected",x===b)});sync()});
     $("#suYear").onchange=sync;
+    $("#suExpr").addEventListener("change",()=>{const c=exprCountry($("#suExpr").value);const code={"Nigeria":"+234","United Kingdom":"+44","United States":"+1","Canada":"+1","Belgium":"+32"}[c];if(code)$("#suPCode").value=code});
     document.querySelectorAll("[data-focus]").forEach(c=>c.onclick=()=>{const f=c.dataset.focus;focus.has(f)?focus.delete(f):focus.add(f);c.classList.toggle("on",focus.has(f))});
     sync();
     $("#signupForm").onsubmit=async e=>{e.preventDefault();
@@ -307,11 +316,12 @@ auth(r){
       if(!year)return showMsg("authMsg","Choose the year you were born.");
       const meta={role,display_name:name,expression:expr,birth_year:String(year)};
       if(role==="teen"&&age<18){
-        const pe=$("#suPEmail").value.trim();
+        const pe=$("#suPEmail").value.trim();const pp=normPhone($("#suPCode").value,$("#suPPhone").value);
         if(!$("#suPName").value.trim()||!/^\S+@\S+\.\S+$/.test(pe))return showMsg("authMsg","Add your parent or guardian's name and email.");
         if(pe.toLowerCase()===email.toLowerCase())return showMsg("authMsg","Your parent or guardian's email needs to be different from yours.");
+        if(!pp)return showMsg("authMsg","Add your parent or guardian's phone number so a leader can call or WhatsApp them.");
         if(!$("#suConsent").checked)return showMsg("authMsg","Tick the box to confirm your parent or guardian knows.");
-        meta.parent_name=$("#suPName").value.trim();meta.parent_email=pe;
+        meta.parent_name=$("#suPName").value.trim();meta.parent_email=pe;meta.parent_phone=pp;meta.parent_whatsapp=$("#suPWa").checked?"yes":"no";
       }
       if(role==="counselor"){
         if(!$("#suSafe").checked)return showMsg("authMsg","Please agree to the safeguarding policy and background check.");
@@ -494,8 +504,18 @@ async admin(){
     if(tab==="consent"){
       const {data:ts}=await SB.from("profiles").select("*").eq("role","teen").eq("can_message",false).order("created_at");
       const {data:pv}=(ts||[]).length?await SB.from("profile_private").select("*").in("id",ts.map(t=>t.id)):{data:[]};const PV=Object.fromEntries((pv||[]).map(p=>[p.id,p]));
-      body.innerHTML=`<p class="muted" style="font-size:.92rem">Contact each parent or guardian before confirming. Confirming lets the teen send messages and posts.</p>`+((ts||[]).length?ts.map(t=>{const p=PV[t.id]||{};return `<div class="tile stack" style="gap:6px">${personRow(t,"",esc(t.age_group||""))}<small class="muted">Parent/guardian: <b>${esc(p.parent_name||"—")}</b> · <span style="user-select:all">${esc(p.parent_email||"—")}</span></small><button class="btn blue sm" data-cf="${t.id}" style="align-self:flex-start">Parent confirmed</button></div>`}).join(""):`<p class="muted">Nobody is waiting for consent.</p>`);
-      body.querySelectorAll("[data-cf]").forEach(b=>b.onclick=async()=>{await SB.from("profile_private").update({consent_confirmed_at:new Date().toISOString()}).eq("id",b.dataset.cf);act(SB.from("profiles").update({can_message:true}).eq("id",b.dataset.cf),"Consent confirmed")});
+      body.innerHTML=`<p class="muted" style="font-size:.92rem">Call, WhatsApp or email each parent or guardian, then confirm. Confirming lets the teen send messages and posts.</p>`+((ts||[]).length?ts.map(t=>{const p=PV[t.id]||{};const msg=consentMsg(p.parent_name,t);const wa=(p.parent_phone||"").replace(/\D/g,"");
+        return `<div class="tile stack" style="gap:8px">${personRow(t,"",esc(t.age_group||"")+" · joined "+timeAgo(t.created_at))}
+        <div class="stack" style="gap:2px;font-size:.9rem"><span>Parent/guardian: <b>${esc(p.parent_name||"—")}</b></span><span class="muted">Phone: <span style="user-select:all">${esc(p.parent_phone||"not given")}</span>${p.parent_whatsapp==="yes"?" · on WhatsApp":""}</span><span class="muted">Email: <span style="user-select:all">${esc(p.parent_email||"—")}</span></span></div>
+        <div class="row" style="gap:6px">
+          ${p.parent_phone?`<a class="btn ghost sm" href="tel:${esc(p.parent_phone)}"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1 11.4 11.4 0 00.57 3.6 1 1 0 01-.25 1z"/></svg>Call</a>`:""}
+          ${wa?`<a class="btn sm wa-btn" href="https://wa.me/${wa}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">${WA_ICON}WhatsApp</a>`:""}
+          ${p.parent_email?`<a class="btn ghost sm" href="mailto:${esc(p.parent_email)}?subject=${encodeURIComponent("Elevation Teenz Connect: please confirm "+t.display_name.split(" ")[0]+"'s account")}&body=${encodeURIComponent(msg)}">Email</a>`:""}
+          <button class="btn ghost sm" data-copy="${esc(msg)}">Copy message</button>
+        </div>
+        <div class="row" style="gap:6px;align-items:center"><select id="via-${t.id}" style="width:auto"><option value="call">Confirmed by call</option><option value="whatsapp" ${wa?"selected":""}>Confirmed on WhatsApp</option><option value="email">Confirmed by email</option><option value="in person">Confirmed in person</option></select><button class="btn blue sm" data-cf="${t.id}">Parent confirmed</button></div></div>`}).join(""):`<p class="muted">Nobody is waiting for consent.</p>`);
+      body.querySelectorAll("[data-copy]").forEach(b=>b.onclick=async()=>{try{await navigator.clipboard.writeText(b.dataset.copy);toast("Message copied")}catch(e){toast("Couldn't copy. Select the text instead.")}});
+      body.querySelectorAll("[data-cf]").forEach(b=>b.onclick=async()=>{const via=$("#via-"+b.dataset.cf).value;await SB.from("profile_private").update({consent_confirmed_at:new Date().toISOString(),consent_method:via,consent_by:C.me.display_name}).eq("id",b.dataset.cf);act(SB.from("profiles").update({can_message:true}).eq("id",b.dataset.cf),"Consent confirmed")});
     }
     if(tab==="posts"){
       const {data:ps}=await SB.from("group_posts").select("*").eq("status","pending").order("created_at");
