@@ -1,0 +1,1 @@
+window.ET_CONFIG = { supabaseUrl: "https://ksfonzausxsfoqkdozow.supabase.co", supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtzZm9uemF1c3hzZm9xa2Rvem93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEwODE2MDQsImV4cCI6MjEwNjY1NzYwNH0.2CRYBXKwpyYRDlE5bBbJFMoUvnUOSMkbovKYQuMMazU" };
