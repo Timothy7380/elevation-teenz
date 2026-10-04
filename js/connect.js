@@ -47,11 +47,20 @@ const CONNECT_ROUTES=["connect","auth","me","mentors","teens","chat","groups","g
 const onConnectRoute=()=>CONNECT_ROUTES.includes(route().split("-")[0]);
 if(SB){
   const fromEmail=/access_token=|error_description=|type=recovery/.test(location.hash);
-  SB.auth.onAuthStateChange(async(ev,session)=>{
-    C.session=session;await loadMe();C.ready=true;navCta();
-    if(ev==="PASSWORD_RECOVERY"){go("auth-reset");return}
-    if(fromEmail&&ev==="SIGNED_IN"&&/access_token=/.test(location.hash)){history.replaceState(null,"",location.pathname+"#me");render();return}
-    if(onConnectRoute())render();
+  let authSeq=0;
+  /* Keep this callback synchronous: awaiting Supabase calls inside it deadlocks the auth lock
+     (sign-in never resolves). Do the follow-up work on the next tick instead. */
+  SB.auth.onAuthStateChange((ev,session)=>{
+    C.session=session;const seq=++authSeq;
+    if(session&&(!C.me||C.me.id!==session.user.id))C.ready=false; // show "loading" until the profile arrives
+    setTimeout(async()=>{
+      try{await loadMe()}catch(e){console.warn("loadMe",e)}
+      if(seq!==authSeq)return;
+      C.ready=true;navCta();
+      if(ev==="PASSWORD_RECOVERY"){go("auth-reset");return}
+      if(fromEmail&&ev==="SIGNED_IN"&&/access_token=/.test(location.hash)){history.replaceState(null,"",location.pathname+"#me");render();return}
+      if(onConnectRoute())render();
+    },0);
   });
 }
 setTimeout(navCta,0);
@@ -279,9 +288,12 @@ connect(){
 auth(r){
   if(!SB)return;const sub=r.split("-")[1]||"login";
   if(sub==="login"){
-    $("#loginForm").onsubmit=async e=>{e.preventDefault();const b=$("#liBtn");b.disabled=true;
-      const {error}=await SB.auth.signInWithPassword({email:$("#liEmail").value.trim(),password:$("#liPw").value});
-      b.disabled=false;if(error)return showMsg("authMsg",errText(error));toast("Welcome back!");go("me")};
+    $("#loginForm").onsubmit=async e=>{e.preventDefault();const b=$("#liBtn");if(b.disabled)return;b.disabled=true;const t0=b.textContent;b.textContent="Logging in…";
+      let error;
+      try{({error}=await SB.auth.signInWithPassword({email:$("#liEmail").value.trim().toLowerCase(),password:$("#liPw").value}))}
+      catch(x){error=x}
+      finally{b.disabled=false;b.textContent=t0}
+      if(error)return showMsg("authMsg",errText(error));toast("Welcome back!");go("me")};
   }
   if(sub==="forgot"){
     $("#forgotForm").onsubmit=async e=>{e.preventDefault();
