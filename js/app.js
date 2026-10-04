@@ -303,11 +303,10 @@ about(){
     <p class="note">${I.info}<span>Built from the Instagram bio. Add TEC's full statement of faith here.</span></p>
   </section>
   <section class="sheet stack">
-    <div class="row" style="justify-content:space-between"><span class="eyebrow">Our leaders</span>${placeholder("Add teens leaders")}</div>
+    <div class="row" style="justify-content:space-between"><span class="eyebrow">Our leaders</span></div>
     <div class="grid3">
-      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:700">GA</span><div><b>Godman Akinlabi</b><p class="muted" style="font-size:.88rem">Global Lead Pastor, The Elevation Church</p></div></div>
-      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:#fff;font-weight:700">BA</span><div><b>Bolarinwa Akinlabi</b><p class="muted" style="font-size:.88rem">Co-leader, The Elevation Church</p></div></div>
-      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:#fff;font-weight:700">?</span><div><b>Leader name</b><p class="muted" style="font-size:.88rem">Teens pastor, Teenz Nation</p></div></div>
+      ${[["godman-akinlabi","Godman Akinlabi","Global Lead Pastor, The Elevation Church"],["bola-akinlabi","Bola Akinlabi","Global Co-Lead Pastor, The Elevation Church"],["olayinka-favour","Olayinka Favour","Teens Pastor, Teenz Nation"]]
+        .map(([f,n,r])=>`<div class="tile row" style="gap:14px;flex-wrap:nowrap"><img class="leader-av" src="assets/leaders/${f}.jpg" alt="${n}" width="56" height="56" loading="lazy"><div style="min-width:0"><b>${n}</b><p class="muted" style="font-size:.88rem">${r}</p></div></div>`).join("")}
     </div>
   </section>
   <section class="sheet stack">
