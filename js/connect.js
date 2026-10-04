@@ -23,6 +23,8 @@ const errText = e=>{const m=(e&&(e.message||e.error_description))||String(e||"So
   if(/Invalid login/i.test(m))return "That email and password don't match. Check them and try again.";
   if(/Email not confirmed/i.test(m))return "Please confirm your email first. Check your inbox for the link we sent.";
   if(/duplicate key/i.test(m))return "You've already sent that request.";
+  if(/rate limit|too many requests|over_email_send_rate/i.test(m))return "Lots of people are signing up right now, so we couldn't send the email. Please wait a few minutes and try again.";
+  if(/already registered/i.test(m))return "There's already an account with that email. Try logging in instead.";
   return m.replace(/^.*?ERROR:\s*/,"")};
 const roleLabel = p=>p.role==="teen"?"Teen":p.role==="admin"?"Leader":"Counselor";
 const isTeen = ()=>C.me&&C.me.role==="teen", isCounselor=()=>C.me&&C.me.role==="counselor", isAdmin=()=>C.me&&C.me.role==="admin";
