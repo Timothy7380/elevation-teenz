@@ -37,7 +37,7 @@ const ridge='<svg class="ridge" viewBox="0 0 400 200" preserveAspectRatio="none"
 const placeholder=t=>`<span class="pill warn" title="Placeholder content">${t||"Placeholder"}</span>`;
 
 /* ===================== ROUTER ===================== */
-const NAV=[["about","About"],["programs","Programs"],["hub","Study Hub"],["grow","Grow"],["media","Media"],["events","Events"],["involved","Get involved"]];
+const NAV=[["about","About"],["programs","Programs"],["hub","Study Hub"],["connect","Connect"],["grow","Grow"],["media","Media"],["events","Events"],["involved","Get involved"]];
 const TABS=[["home","Home",I.home],["hub","Study",I.book],["events","Events",I.cal],["grow","Grow",I.flame],["__more","More",I.more]];
 function route(){return (location.hash||"#home").slice(1)||"home"}
 function go(r){if(route()===r)render();else location.hash=r;window.scrollTo(0,0)}
@@ -47,14 +47,19 @@ function render(){
   if(r.startsWith("lesson-")) html=viewLesson(r.slice(7));
   else if(r.startsWith("series-")) html=viewSeries(r.slice(7));
   else if(r.startsWith("program-")) html=viewProgram(r.slice(8));
+  else if(typeof CONNECT_VIEWS!=="undefined"&&CONNECT_VIEWS[r.split("-")[0]]){const pre=r.split("-")[0];html=CONNECT_VIEWS[pre](r.slice(pre.length+1))}
   else html=(VIEWS[r]||VIEWS.home)();
   v.innerHTML=html;
-  const base=r.startsWith("lesson-")||r.startsWith("series-")?"hub":r.startsWith("program-")?"programs":r;
+  const isConn=typeof CONNECT_ROUTES!=="undefined"&&CONNECT_ROUTES.includes(r.split("-")[0]);
+  const base=r.startsWith("lesson-")||r.startsWith("series-")?"hub":r.startsWith("program-")?"programs":isConn?"connect":r;
   $("#toplinks").innerHTML=NAV.map(([k,l])=>`<button data-go="${k}" class="${k===base?"on":""}">${l}</button>`).join("");
   $("#foot").innerHTML=footerHTML();
   $("#tabs").innerHTML=TABS.map(([k,l,ic])=>`<button data-go="${k}" class="${k===base?"on":""}" aria-label="${l}">${ic}<span>${l}</span></button>`).join("");
   document.title=(r==="home"?"":((NAV.find(n=>n[0]===base)||[])[1]||"")+" · ")+"Elevation Teenz";
-  (AFTER[r.split("-")[0]]||(()=>{}))(r);
+  if(typeof navCta==="function")navCta();
+  const pre=r.split("-")[0];
+  if(isConn&&typeof CONNECT_AFTER!=="undefined"){bindSignOut();(CONNECT_AFTER[pre]||(()=>{}))(r)}
+  else (AFTER[pre]||(()=>{}))(r);
 }
 window.addEventListener("hashchange",()=>{render();window.scrollTo(0,0)});
 document.addEventListener("click",e=>{
@@ -95,7 +100,8 @@ const FAQ=[
  ["Is the Study Hub free?","Yes. Every study, series, quiz and memory verse is free to use."],
  ["Do I need an account to study?","Not to read. Your progress, streaks and journal are saved on your device for now. Accounts will let you keep them across devices."],
  ["How do I register for Navigate?","Registration happens on the Navigate website. Open the Navigate page here and tap Register."],
- ["Is it safe for my teen?","There's no private messaging, every prayer request and testimony is checked by a leader first, and teens under 18 need a parent or guardian's OK to sign up."],
+ ["Is it safe for my teen?","Counselors are approved by church leaders before teens can see them. Chats stay inside the site, can't include phone numbers or links, and leaders can read them. Teens under 18 can only send messages after a leader confirms a parent or guardian's OK."],
+ ["How does Connect work?","Teens and counselors sign up, choose their expression from every TEC expression worldwide, and connect: teens can request an approved mentor, add teen friends from any expression and join expression groups."],
  ["Who writes the studies?","Studies are written by the Teenz Nation team. New topics are added regularly. Suggest one on the Get involved page."]
 ];
 const QUOTES=[
@@ -243,9 +249,14 @@ home(){
       <div class="bcard b-e" style="min-height:300px"><h4><span class="tag-b">Teens</span> aged 12–19 in Lagos, Abuja and beyond</h4>
         <div class="orbit"><span class="core"><img src="assets/logo.png" alt=""></span>${[[20,8,0],[62,2,5],[-6,46,6],[88,38,7],[30,70,1]].map(([x,y,i])=>`<img class="o" src="${g[i][0]}" alt="" style="left:${x}%;top:${y}%">`).join("")}</div></div>
       <div class="bcard b-f" style="min-height:200px"><h4><span class="tag-b">Parents</span> who want their teen to grow in a safe, vibrant place</h4>
-        <p class="muted" style="margin-top:12px;font-size:.95rem;max-width:40ch">Moderated prayer wall, no private messaging, and parental consent for every sign-up under 18.</p></div>
+        <p class="muted" style="margin-top:12px;font-size:.95rem;max-width:40ch">Vetted counselors, chats leaders can see, and parental consent for every teen under 18.</p></div>
       <div class="bcard b-g" style="min-height:200px"><h4>Leaders looking <span class="tag-y">to disciple</span> their teens week by week</h4></div>
     </div>
+  </section>
+
+  <section class="connect-band">
+    <div class="stack" style="gap:14px"><span class="eyebrow" style="color:#9AA3BC">New · Connect</span><h2 style="color:#fff">Mentors and friends across <span class="mark">every expression</span></h2><p>Teens can ask an approved counselor to mentor them and make friends with teens from Lagos to London to Toronto. Leaders vet every counselor and can see every chat.</p><div class="row"><button class="btn blue" data-go="connect">Explore Connect</button><button class="btn" style="background:#fff;color:var(--ink)" data-go="auth-signup">Create an account</button></div></div>
+    <div class="stats"><div><b>${EXPRESSIONS.filter(e=>e.country!=="Online").length}</b><small>expressions worldwide</small></div><div><b>${EXPRESSION_COUNTRIES.length-1}</b><small>countries plus online</small></div><div><b>100%</b><small>counselors vetted</small></div></div>
   </section>
 
   <section class="L-test">
@@ -292,16 +303,19 @@ about(){
     <p class="note">${I.info}<span>Built from the Instagram bio. Add TEC's full statement of faith here.</span></p>
   </section>
   <section class="sheet stack">
-    <div class="row" style="justify-content:space-between"><span class="eyebrow">Our leaders</span>${placeholder("Add names & photos")}</div>
-    <div class="grid3">${["Lead pastor","Teens pastor","Program coordinator"].map((r,i)=>`<div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:${["var(--ink)","var(--blue)","var(--orange)"][i]};color:${i==0?"var(--bg)":"#fff"};font-family:var(--f-display);font-weight:800">?</span><div><b>Leader name</b><p class="muted" style="font-size:.88rem">${r}</p></div></div>`).join("")}</div>
+    <div class="row" style="justify-content:space-between"><span class="eyebrow">Our leaders</span>${placeholder("Add teens leaders")}</div>
+    <div class="grid3">
+      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--ink);color:#fff;font-weight:700">GA</span><div><b>Godman Akinlabi</b><p class="muted" style="font-size:.88rem">Global Lead Pastor, The Elevation Church</p></div></div>
+      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--blue);color:#fff;font-weight:700">BA</span><div><b>Bolarinwa Akinlabi</b><p class="muted" style="font-size:.88rem">Co-leader, The Elevation Church</p></div></div>
+      <div class="tile row" style="gap:14px"><span class="ic" style="width:52px;height:52px;border-radius:50%;display:grid;place-items:center;background:var(--orange);color:#fff;font-weight:700">?</span><div><b>Leader name</b><p class="muted" style="font-size:.88rem">Teens pastor, Teenz Nation</p></div></div>
+    </div>
   </section>
   <section class="sheet stack">
     <span class="eyebrow">Where we are</span>
-    <h3>One Teenz Nation, many locations.</h3>
-    <p class="muted">Teens are active across TEC locations, including:</p>
-    <div class="row">${["Lekki, Lagos","Ogba, Lagos","Ikorodu, Lagos","Ikorodu North, Lagos","Abuja"].map(c=>`<span class="chip" style="cursor:default">${c}</span>`).join("")}</div>
-    <p class="note">${I.info}<span>Taken from TEC branch pages that tag Elevation Teenz. Confirm and add any missing locations.</span></p>
-    <button class="btn blue" data-go="involved" style="align-self:flex-start">Get connected</button>
+    <h3>${EXPRESSIONS.filter(e=>e.country!=="Online").length} expressions, one Teenz Nation.</h3>
+    <p class="muted">The Elevation Church was founded on 10 October 2010 and now meets across ${EXPRESSION_COUNTRIES.filter(c=>c!=="Online").join(", ").replace(/, ([^,]*)$/," and $1")}, plus online.</p>
+    <div class="row">${EXPRESSION_COUNTRIES.map(c=>`<span class="chip" style="cursor:default">${c} · ${EXPRESSIONS.filter(e=>e.country===c).length}</span>`).join("")}</div>
+    <div class="row"><button class="btn blue" data-go="connect">See every expression</button><button class="btn ghost" data-go="auth-signup">Join Connect</button></div>
   </section>`;
 },
 
@@ -465,7 +479,7 @@ involved(){
     <div class="row">${["ig","yt","tt","fb","th"].map(k=>`<a class="btn sm soc-btn" style="--sc:${SOC[k].c}" href="${SOC[k].u()}" target="_blank" rel="noopener">${SOC[k].s}${SOC[k].n}</a>`).join("")}</div>
     <p class="muted" style="font-size:.92rem">@elevationteenz on every platform. Get the Tec Teenz app and all our links from the <a href="${LINKS.app}" target="_blank" rel="noopener">app page</a> and <a href="${LINKS.linktree}" target="_blank" rel="noopener">Linktree</a>.</p>
     <div class="row">${placeholder("Add giving details")}${placeholder("Add contact email")}</div>
-    <p class="note">${I.lock}<span>For safety, there's no private messaging on this site. Teens can reach leaders through their location or a parent.</span></p>
+    <p class="note">${I.lock}<span>Connect chats stay inside the site and church leaders can read them. Counselors are approved before teens can see them.</span></p>
   </section>`;
 }
 };
